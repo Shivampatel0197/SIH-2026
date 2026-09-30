@@ -68,14 +68,29 @@ demo = gr.Interface(
 
 app = demo.app
 
-# Enable CORS for Vite frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Custom middleware to bypass Gradio/HF CSRF blocks for our specific API routes
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+class DisableCSRFMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path.startswith("/api/"):
+            # Bypass CSRF checks for our custom endpoints
+            request.scope["headers"] = [(k, v) for k, v in request.scope["headers"] if k.lower() != "origin"]
+        
+        # Handle CORS preflight explicitly
+        if request.method == "OPTIONS":
+            response = Response()
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+            
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+
+app.add_middleware(DisableCSRFMiddleware)
 
 @app.post("/api/process-image")
 async def process_image(file: UploadFile = File(...), metric_calibration: bool = Form(False)):
