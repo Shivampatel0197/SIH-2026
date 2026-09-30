@@ -10,6 +10,7 @@ from PIL import Image
 import io
 from calibration import GeoCalibrationEngine
 import gradio as gr
+import spaces
 
 def suppress_water_body_elevation(optical_rgb: np.ndarray, heightmap: np.ndarray) -> np.ndarray:
     """
@@ -48,6 +49,7 @@ os.makedirs("output", exist_ok=True)
 global_dsm_cache = {}
 
 @app.post("/api/process-image")
+@spaces.GPU(duration=60)
 async def process_image(file: UploadFile = File(...), metric_calibration: bool = Form(False)):
     contents = await file.read()
     
@@ -148,6 +150,7 @@ def download_heightmap():
 def export_dsm():
     return FileResponse(os.path.join("output", "dsm.tif"))
 
+@spaces.GPU(duration=60)
 def test_inference(image):
     """ Gradio UI handler for quick testing """
     if image is None:
