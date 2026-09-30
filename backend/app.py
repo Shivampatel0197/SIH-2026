@@ -92,9 +92,18 @@ class DisableCSRFMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(DisableCSRFMiddleware)
 
+from pydantic import BaseModel
+import base64
+
+class ProcessImageRequest(BaseModel):
+    image_base64: str
+    metric_calibration: bool = False
+
 @app.post("/api/process-image")
-async def process_image(file: UploadFile = File(...), metric_calibration: bool = Form(False)):
-    contents = await file.read()
+async def process_image(req: ProcessImageRequest):
+    # Strip the data:image/png;base64, prefix if present
+    base64_data = req.image_base64.split(",")[-1] if "," in req.image_base64 else req.image_base64
+    contents = base64.b64decode(base64_data)
     
     bounds = None
     crs = None
@@ -117,7 +126,7 @@ async def process_image(file: UploadFile = File(...), metric_calibration: bool =
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         image_array = np.array(image)
         
-    mode = "Metric Absolute Mode" if is_geotiff and metric_calibration else "Relative Mode (rDSM)"
+    mode = "Metric Absolute Mode" if is_geotiff and req.metric_calibration else "Relative Mode (rDSM)"
     
     relative_depth = engine.run_mock_inference(image_array)
     metric_dsm, _, _ = engine.apply_gasc_calibration(relative_depth, bounds=bounds)

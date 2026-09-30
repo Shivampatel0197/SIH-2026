@@ -24,26 +24,31 @@ function App() {
     setFile(selected);
     setImagePreview(URL.createObjectURL(selected));
     
-    const formData = new FormData();
-    formData.append('file', selected);
-    formData.append('metric_calibration', true);
-
     setProcessing(true);
-    try {
-      const res = await axios.post(`${API_BASE}/api/process-image`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const data = res.data;
-      setModelData({
-        ...data,
-        heightmapUrl: `${API_BASE}/api/download-heightmap?` + Date.now(),
-        textureUrl: URL.createObjectURL(selected)
-      });
-      setFloodLevel(data.min_elev);
-    } catch (err) {
-      console.error(err);
-    }
-    setProcessing(false);
+    
+    // Convert file to Base64 to bypass HF Space "Cross-site POST form submissions" block
+    const reader = new FileReader();
+    reader.readAsDataURL(selected);
+    reader.onload = async () => {
+      try {
+        const res = await axios.post(`${API_BASE}/api/process-image`, {
+          image_base64: reader.result,
+          metric_calibration: true
+        }, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = res.data;
+        setModelData({
+          ...data,
+          heightmapUrl: `${API_BASE}/api/download-heightmap?` + Date.now(),
+          textureUrl: URL.createObjectURL(selected)
+        });
+        setFloodLevel(data.min_elev);
+      } catch (err) {
+        console.error(err);
+      }
+      setProcessing(false);
+    };
   };
 
   const getProfile = async (x1, y1, x2, y2) => {
