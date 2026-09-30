@@ -10,6 +10,7 @@ from rasterio.transform import from_bounds
 from PIL import Image
 import io
 from calibration import GeoCalibrationEngine
+import gradio as gr
 
 def suppress_water_body_elevation(optical_rgb: np.ndarray, heightmap: np.ndarray) -> np.ndarray:
     """
@@ -178,5 +179,42 @@ def download_heightmap():
 def export_dsm():
     return FileResponse(os.path.join("output", "dsm.tif"))
 
+def test_inference(image):
+    """ Gradio UI handler for quick testing """
+    if image is None:
+        return None
+    # 2. AI Monocular Depth Extraction
+    relative_depth = engine.run_mock_inference(image)
+    
+    # 3. Geo-Affine Metric Calibration
+    metric_dsm, _, _ = engine.apply_gasc_calibration(relative_depth, bounds=None)
+    
+    d_min, d_max = np.min(metric_dsm), np.max(metric_dsm)
+    norm = (metric_dsm - d_min) / (d_max - d_min + 1e-8)
+    
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    macro_terrain = cv2.morphologyEx(norm, cv2.MORPH_OPEN, kernel)
+    structures = cv2.subtract(norm, macro_terrain)
+    structures = np.clip(structures * 0.35, 0.0, 1.0)
+    
+    final_height = macro_terrain + structures
+    final_height = cv2.GaussianBlur(final_height, (5, 5), sigmaX=1.0)
+    final_height = suppress_water_body_elevation(image, final_height)
+    
+    final_height = (final_height - np.min(final_height)) / (np.max(final_height) - np.min(final_height) + 1e-8)
+    dsm_normalized = (final_height * 65535.0).astype(np.uint16)
+    
+    return dsm_normalized
+
+demo = gr.Interface(
+    fn=test_inference,
+    inputs=gr.Image(type="numpy", label="Input Satellite Image"),
+    outputs=gr.Image(type="numpy", label="Generated Heightmap (16-bit)"),
+    title="DepthWizard API Tester",
+    description="Upload an aerial image to test the topographical depth extraction pipeline."
+)
+
+app = gr.mount_gradio_app(app, demo, path="/")
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
