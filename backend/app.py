@@ -49,7 +49,6 @@ os.makedirs("output", exist_ok=True)
 global_dsm_cache = {}
 
 @app.post("/api/process-image")
-@spaces.GPU(duration=60)
 async def process_image(file: UploadFile = File(...), metric_calibration: bool = Form(False)):
     contents = await file.read()
     
