@@ -4,6 +4,8 @@ import { UploadCloud, Download, Activity, Play, Settings } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 function App() {
   const [file, setFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -28,13 +30,13 @@ function App() {
 
     setProcessing(true);
     try {
-      const res = await axios.post('http://localhost:8000/api/process-image', formData, {
+      const res = await axios.post(`${API_BASE}/api/process-image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const data = res.data;
       setModelData({
         ...data,
-        heightmapUrl: 'http://localhost:8000/api/download-heightmap?' + Date.now(),
+        heightmapUrl: `${API_BASE}/api/download-heightmap?` + Date.now(),
         textureUrl: URL.createObjectURL(selected)
       });
       setFloodLevel(data.min_elev);
@@ -46,7 +48,7 @@ function App() {
 
   const getProfile = async (x1, y1, x2, y2) => {
     try {
-      const res = await axios.get(`http://localhost:8000/api/elevation-profile`, {
+      const res = await axios.get(`${API_BASE}/api/elevation-profile`, {
         params: { x1, y1, x2, y2 }
       });
       setProfileData(res.data.profile);
@@ -119,7 +121,7 @@ function App() {
               <div className="text-right text-xs mt-1 font-mono text-aerospace-cyan">{Number(floodLevel).toFixed(1)} m</div>
             </div>
             
-            <a href="http://localhost:8000/api/export-dsm" download className="mt-auto flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 py-3 rounded-lg text-sm font-semibold transition-colors border border-gray-700">
+            <a href={`${API_BASE}/api/export-dsm`} download className="mt-auto flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 py-3 rounded-lg text-sm font-semibold transition-colors border border-gray-700">
               <Download className="w-4 h-4" /> Export DSM (GeoTIFF)
             </a>
           </div>
