@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+rasterio
+numpy
+onnxruntime
+scikit-learn
+opencv-python-headless
+pillow
+scipy
