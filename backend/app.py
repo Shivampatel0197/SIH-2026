@@ -76,7 +76,7 @@ class DisableCSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if request.url.path.startswith("/api/"):
             # Bypass CSRF checks for our custom endpoints
-            request.scope["headers"] = [(k, v) for k, v in request.scope["headers"] if k.lower() != "origin"]
+            request.scope["headers"] = [(k, v) for k, v in request.scope["headers"] if k.lower() != b"origin"]
         
         # Handle CORS preflight explicitly
         if request.method == "OPTIONS":
